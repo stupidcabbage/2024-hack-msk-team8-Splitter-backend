@@ -1,0 +1,33 @@
+CREATE TABLE IF NOT EXISTS users  (
+    username VARCHAR(32) PRIMARY KEY,
+    "password" TEXT,
+    invite_code VARCHAR(64),
+    phone_number VARCHAR(32),
+    created_at timestamp,
+    updated_at timestamp
+);
+
+CREATE TABLE IF NOT EXISTS "groups" (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(32),
+    invite_code VARCHAR(64),
+    created_by VARCHAR(64) REFERENCES users
+);
+
+CREATE TABLE IF NOT EXISTS debts (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(32),
+    from_username VARCHAR(64) REFERENCES users,
+    to_username VARCHAR(64) REFERENCES users,
+    is_closed BOOLEAN,
+    total_amount INT,
+    payed_amount INT,
+    created_at timestamp,
+    updated_at timestamp,
+    group_id int REFERENCES "groups" (id)
+);
+
+CREATE TABLE IF NOT EXISTS groups_users (
+    username VARCHAR(64) REFERENCES users,
+    group_id INT REFERENCES "groups"
+);

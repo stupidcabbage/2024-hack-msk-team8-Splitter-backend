@@ -1,0 +1,882 @@
+definitions:
+  debt_service.DebtsMetrics:
+    properties:
+      payed_incoming_debts_amount:
+        type: integer
+      payed_outcoming_debts_amount:
+        type: integer
+      unpayed_incoming_debts_amount:
+        type: integer
+      unpayed_outcoming_debts_amount:
+        type: integer
+    type: object
+  dto.AuthorizeUserDto:
+    properties:
+      password:
+        maxLength: 64
+        minLength: 6
+        type: string
+      username:
+        maxLength: 32
+        minLength: 6
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  dto.ChangeUserPasswordDto:
+    properties:
+      new_password:
+        maxLength: 64
+        minLength: 6
+        type: string
+      old_password:
+        maxLength: 64
+        minLength: 6
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
+  dto.CreateDebtDto:
+    properties:
+      group_id:
+        type: integer
+      invite_code:
+        maxLength: 8
+        minLength: 8
+        type: string
+      name:
+        maxLength: 32
+        minLength: 1
+        type: string
+      to_username:
+        description: FromUsername string `json:"from_username" db:"from_username"`
+        type: string
+      total_amount:
+        type: integer
+    required:
+    - invite_code
+    - name
+    - total_amount
+    type: object
+  dto.CreateUserDto:
+    properties:
+      invite_code:
+        type: string
+      password:
+        maxLength: 64
+        minLength: 6
+        type: string
+      phone_number:
+        maxLength: 32
+        minLength: 6
+        type: string
+      username:
+        maxLength: 32
+        minLength: 6
+        type: string
+    required:
+    - password
+    - phone_number
+    - username
+    type: object
+  dto.DebtDto:
+    properties:
+      created_at:
+        type: string
+      from_username:
+        maxLength: 32
+        minLength: 6
+        type: string
+      group_id:
+        type: integer
+      id:
+        type: integer
+      is_closed:
+        description: sets automatically to false
+        type: boolean
+      name:
+        maxLength: 32
+        minLength: 6
+        type: string
+      payed_amount:
+        description: sets automatically to 0
+        type: integer
+      to_username:
+        maxLength: 32
+        minLength: 6
+        type: string
+      total_amount:
+        type: integer
+      updated_at:
+        type: string
+    required:
+    - from_username
+    - name
+    - payed_amount
+    - to_username
+    - total_amount
+    type: object
+  dto.GetUserDto:
+    properties:
+      created_at:
+        type: string
+      invite_code:
+        type: string
+      phone_number:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  dto.GroupDto:
+    properties:
+      created_by:
+        type: string
+      id:
+        type: integer
+      invite_code:
+        type: string
+      name:
+        maxLength: 32
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
+  dto.IncreaseDebtPayedAmountDto:
+    properties:
+      amount:
+        minimum: 0
+        type: integer
+    required:
+    - amount
+    type: object
+  errorz.Error_:
+    properties:
+      message:
+        type: string
+      status_code:
+        type: integer
+    type: object
+info:
+  contact: {}
+paths:
+  /auth:
+    post:
+      consumes:
+      - application/json
+      description: Authorizes user and returns JWT
+      parameters:
+      - description: User credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AuthorizeUserDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetUserDto'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      tags:
+      - auth
+  /auth/changePassword:
+    post:
+      consumes:
+      - application/json
+      description: Changes user password and makes current token invalid
+      parameters:
+      - description: User passwords
+        in: body
+        name: passwords
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ChangeUserPasswordDto'
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - auth
+  /debts:
+    post:
+      consumes:
+      - application/json
+      description: Creates debt and returns it
+      parameters:
+      - description: Debt data
+        in: body
+        name: debt
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateDebtDto'
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            items:
+              $ref: '#/definitions/dto.DebtDto'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - debt
+  /debts/{id}:
+    get:
+      description: Returns debt object (outcoming and incoming) (requires JWT in "Bearer"
+        header)
+      parameters:
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.DebtDto'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - debt
+  /debts/{id}/close:
+    patch:
+      description: Closes debt (requires JWT in "Bearer" header)
+      parameters:
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: boolean
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - debt
+  /debts/{id}/payedAmount/increase:
+    put:
+      description: Increases debt current payed amount (requires JWT in "Bearer" header)
+      parameters:
+      - description: Amount data
+        in: body
+        name: debt
+        required: true
+        schema:
+          $ref: '#/definitions/dto.IncreaseDebtPayedAmountDto'
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: boolean
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - debt
+  /debts/closed:
+    get:
+      description: Returns user's closed debts (outcoming and incoming) (requires
+        JWT in "Bearer" header)
+      parameters:
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.DebtDto'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - debt
+  /debts/incoming:
+    get:
+      description: Returns user's incoming debts(requires JWT in "Bearer" header)
+      parameters:
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.DebtDto'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - debt
+  /debts/outcoming:
+    get:
+      description: Returns user's outcoming debts(requires JWT in "Bearer" header)
+      parameters:
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.DebtDto'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - debt
+  /debts/stats:
+    get:
+      description: Returns user's debts stats object (requires JWT in "Bearer" header)
+      parameters:
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/debt_service.DebtsMetrics'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - debt
+  /groups:
+    post:
+      consumes:
+      - application/json
+      description: Creates new group (requires JWT in "Bearer" header)
+      parameters:
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.GroupDto'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - group
+  /groups/{group_id}/debts/incoming:
+    get:
+      consumes:
+      - application/json
+      description: Получить весь список своих долгов в группе (requires JWT in "Bearer"
+        header)
+      parameters:
+      - description: Group id
+        in: path
+        name: group_id
+        required: true
+        type: string
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              items:
+                $ref: '#/definitions/dto.DebtDto'
+              type: array
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - group
+  /groups/{group_id}/debts/outcoming:
+    get:
+      consumes:
+      - application/json
+      description: Получить весь список должников в группе (requires JWT in "Bearer"
+        header)
+      parameters:
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Group id
+        in: path
+        name: group_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              items:
+                $ref: '#/definitions/dto.DebtDto'
+              type: array
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - group
+  /groups/{group_id}/users:
+    get:
+      consumes:
+      - application/json
+      description: Get all group users (requires JWT in "Bearer" header)
+      parameters:
+      - description: Group id
+        in: path
+        name: group_id
+        required: true
+        type: string
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              items:
+                $ref: '#/definitions/dto.GetUserDto'
+              type: array
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - group
+  /groups/{invite_code}/join:
+    post:
+      consumes:
+      - application/json
+      description: Connect user to group (requires JWT in "Bearer" header)
+      parameters:
+      - description: Invite Code
+        in: path
+        name: invite_code
+        required: true
+        type: string
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - group
+  /groups/created:
+    get:
+      consumes:
+      - application/json
+      description: Получить список созданных групп (requires JWT in "Bearer" header)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              items:
+                $ref: '#/definitions/dto.GroupDto'
+              type: array
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - group
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: Creates new user and returns it
+      parameters:
+      - description: User data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateUserDto'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.GetUserDto'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      tags:
+      - user
+  /users/{username}:
+    get:
+      description: Returns user profile by username (requires JWT in "Bearer" header)
+      parameters:
+      - description: Username
+        in: path
+        name: username
+        required: true
+        type: string
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetUserDto'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /users/me:
+    get:
+      description: Returns user profile (requires JWT in "Bearer" header)
+      parameters:
+      - description: Bearer JWT token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetUserDto'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errorz.Error_'
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+swagger: "2.0"

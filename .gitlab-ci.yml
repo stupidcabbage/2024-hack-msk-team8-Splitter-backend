@@ -1,0 +1,117 @@
+.rules-merge-or-master:
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+    - if: $CI_COMMIT_REF_NAME == "master"
+
+.rules-merge:
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+
+.rules-master:
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+
+.global-variables:
+  variables:
+    SSH_USER: $ENV_SSH_USER # < Group Project Variable. Don't forget to add it!
+    SSH_HOST: $ENV_SERVER_IP # < Group Project Variable. Don't forget to add it!
+    SSH_PRIVATE_KEY_BASE64: $ENV_PRIVATE_KEY_BASE64 # < 
+    DB_HOST: $DB_HOST
+    DB_PORT: $DB_PORT
+    DB_USER: $DB_USER
+    DB_PASSWORD: $DB_PASSWORD
+    DB_NAME: $DB_NAME
+    JWT_SECRET: $JWT_SECRET
+    REDIS_CONNECTION: $REDIS_CONNECTION
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  extends:
+    - .build
+    - .rules-merge-or-master
+
+deploy:
+  stage: deploy
+  extends:
+    - .docker_run
+    - .global-variables
+    # Don't use it! Shown for example. Use .rules-master
+    - .rules-merge-or-master
+
+.build:
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  stage: build
+  variables:
+    DOCKERFILE_PATH: Dockerfile
+    IMAGE_TAG: $CI_COMMIT_SHA
+    IMAGE_NAME: $CI_REGISTRY_IMAGE:$IMAGE_TAG
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+    DOCKER_DRIVER: overlay2
+
+  before_script:
+    - for try in {1..10}; do sleep 0.5; docker info && break ; done
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY --username $CI_REGISTRY_USER --password-stdin
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:backend_$CI_COMMIT_SHA -f Dockerfile .
+    - docker push $CI_REGISTRY_IMAGE:backend_$CI_COMMIT_SHA
+
+.ssh:
+  image: kroniak/ssh-client:3.19
+  variables:
+    SSH_HOST: "{{sensitive_data}}"
+    SSH_USER: "root"
+    SSH_ADDRESS: $SSH_USER@$SSH_HOST
+  before_script:
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config && chmod 600 ~/.ssh/config
+    - echo "$SSH_PRIVATE_KEY_BASE64" | base64 -d > ~/.ssh/id_rsa && chmod 400 ~/.ssh/id_rsa
+    - ssh-agent sh -c "ssh-add ~/.ssh/id_rsa"
+    - ssh-keyscan -H "$SSH_HOST"
+
+
+.docker_run:
+  extends: .ssh
+  stage: deploy
+  variables:
+    RUN_ARGS: ""
+    DOCKERFILE_PATH: Dockerfile
+    IMAGE_TAG_BACKEND: backend_$CI_COMMIT_SHA
+    IMAGE_NAME_BACKEND: $CI_REGISTRY_IMAGE:backend_$CI_COMMIT_SHA
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+    DOCKER_DRIVER: overlay2
+    PRUNE_COMMAND: "docker system prune -f -a"
+    CONTAINER_NAME_SUFFIX: ""
+  script:
+    - AUTH_COMMAND="echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY --username $CI_REGISTRY_USER --password-stdin";
+    - ssh $SSH_ADDRESS "$AUTH_COMMAND"
+    - ssh $SSH_ADDRESS "docker pull $CI_REGISTRY_IMAGE:backend_$CI_COMMIT_SHA"
+    - ssh $SSH_ADDRESS "docker stop $CI_PROJECT_NAME-backend || true"
+    - ssh $SSH_ADDRESS "docker rm $CI_PROJECT_NAME-backend || true"
+    - ssh $SSH_ADDRESS "
+      docker run -d
+      --restart=unless-stopped
+      -p 8000:8000
+      --log-driver local
+      --log-opt max-size=100m
+      --name=$CI_PROJECT_NAME-backend
+      --env DB_HOST=$DB_HOST
+      --env DB_PORT=$DB_PORT
+      --env DB_USER=$DB_USER
+      --env DB_PASSWORD=$DB_PASSWORD
+      --env DB_NAME=$DB_NAME
+      --env JWT_SECRET=$JWT_SECRET
+      --env REDIS_CONNECTION=$REDIS_CONNECTION
+      $IMAGE_NAME_BACKEND $RUN_ARGS"
+    - ssh $SSH_ADDRESS "$PRUNE_COMMAND"
